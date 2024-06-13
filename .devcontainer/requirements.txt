@@ -1,0 +1,10 @@
+jupyterlab
+ipykernel
+ipython
+pandas
+pyarrow
+openpyxl
+cfn-lint
+black
+isort
+dbt-duckdb
