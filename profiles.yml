@@ -1,0 +1,10 @@
+gpa:
+  target: gpa
+  outputs:
+    dev:
+      type: duckdb
+      path: dbt.duckdb
+    gpa:
+      type: duckdb
+      path: database.duckdb
+      schema: main
