@@ -21,7 +21,8 @@ WITH update_comm_cte AS (
         -- prim_prog,
         grade_points,
         enrl_tot_gpa,
-        topic_id::int::text as topic_id
+        topic_id::int::text as topic_id,
+        repeat
     FROM
         {{ source(
             'main',
@@ -49,6 +50,6 @@ SELECT
     grd_points,
     grade_points,
     enrl_tot_gpa,
-    repeat_tag
+    repeat
 FROM
     update_comm_cte
