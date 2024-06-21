@@ -28,8 +28,8 @@ WITH update_comm_cte AS (
             'all_gpa_table'
         ) }}
     WHERE
-        prim_prog <> 'UGND'
-        AND grade IN (
+        -- prim_prog <> 'UGND' AND
+        grade IN (
             'A',
             'B',
             'C',
@@ -48,6 +48,7 @@ SELECT
     grd_pt_per_unit,
     grd_points,
     grade_points,
-    enrl_tot_gpa
+    enrl_tot_gpa,
+    repeat_tag
 FROM
     update_comm_cte

@@ -105,7 +105,7 @@ class GPARollBack:
             [self.by_subjects[subject_name]["past"], current_row]
         )
 
-        # pass fail
+        # pass_fail
         if current_row["grade"].iloc[0] == "PS":
             minus_value = (0, 0)
         else:
@@ -117,10 +117,10 @@ class GPARollBack:
         previous_row = self.by_subjects[subject_name]["current"].iloc[0:1, :]
 
         # allow repeat
-        if course_type == "ALLOW_REPEAT":
+        #  TODO: new repeat logic
+        repeat_tag  = "REPT"
+        if repeat_tag != "EXCLUDE":
             plus_value = (0, 0)
-
-        # regular
         else:
             plus_value = (
                 (
@@ -130,7 +130,6 @@ class GPARollBack:
                 if len(self.by_subjects[subject_name]["current"]) > 0
                 else (0, 0)
             )
-        # print((subject_name, minus_value, plus_value))
         return (subject_name, minus_value, plus_value)
 
     def rollback(self) -> "GPARollBack":
@@ -142,7 +141,6 @@ class GPARollBack:
         2172   FTWL-106            B        3           105         3                        208
         2168   MATH-471            F        3            98         0                        195
         """
-
         current_gpa = {
             "term": self.df.iloc[0]["term"],
             "total_gpa": self.df.iloc[0]["total_gpa"],
@@ -212,17 +210,19 @@ if __name__ == "__main__":
     con = duckdb.connect("database.duckdb")
 
     student_ids = con.sql(
-        """
+    """
         select distinct id from silver_gpa_table order by id;
     """
     ).to_df()
     
     con.sql("truncate TABLE rolled_gpa")
 
-    for id in student_ids["id"][0:100]:
+    for id in  [
+        3081652
+    ]:  #  student_ids["id"][100:500]:
         df = con.sql(
             f"""
-            select 
+            select distinct 
                 id,
                 term, 
                 course_name as full_subject_id,  
@@ -234,7 +234,7 @@ if __name__ == "__main__":
                 course_type
             from silver_gpa_table
             where id = {id}
-                ;"""
+            ;"""
         ).to_df()
 
         student_roll_back = (
