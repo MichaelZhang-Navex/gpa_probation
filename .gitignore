@@ -7,3 +7,5 @@ logs/
 *.duckdb.wal
 .envrc
 
+.DS_Store
+output.*

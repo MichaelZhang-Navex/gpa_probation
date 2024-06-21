@@ -20,7 +20,8 @@ WITH update_comm_cte AS (
         unit_taken,
         -- prim_prog,
         grade_points,
-        enrl_tot_gpa
+        enrl_tot_gpa,
+        topic_id::int::text as topic_id
     FROM
         {{ source(
             'main',
@@ -40,7 +41,8 @@ WITH update_comm_cte AS (
 SELECT
     id,
     term,
-    "subject" || '-' || "catalog" AS course_name,
+    "subject" || '-' || "catalog"  || '-' || "topic_id" AS course_name,
+    "subject" || '-' || "catalog"  as subject_catalog,
     grade,
     unit_taken,
     grd_pt_per_unit,
