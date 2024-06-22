@@ -38,11 +38,12 @@ WITH update_comm_cte AS (
             'F',
             'PS'
         )
-)
+),
+original_catalog as(
 SELECT
     id,
     term,
-    "subject" || '-' || "catalog"  || '-' || "topic_id" AS course_name,
+    {# "subject" || '-' || "catalog"  || '-' || "topic_id" AS course_name, #}
     "subject" || '-' || "catalog"  as subject_catalog,
     grade,
     unit_taken,
@@ -53,3 +54,18 @@ SELECT
     repeat
 FROM
     update_comm_cte
+)
+,non_repeatable_catalog as (
+SELECT
+    id,
+    term,
+    subject_catalog,
+    grade,
+    unit_taken,
+    grd_pt_per_unit,
+    grd_points,
+    grade_points,
+    enrl_tot_gpa,
+    repeat
+from original_catalog
+)

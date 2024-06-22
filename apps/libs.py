@@ -3,7 +3,8 @@ import pandas as pd
 import math
 import warnings
 
-warnings.simplefilter(action='ignore', category=Warning)
+warnings.simplefilter(action="ignore", category=Warning)
+
 
 class GPARollBack:
     student_df: pd.DataFrame
@@ -26,7 +27,7 @@ class GPARollBack:
         "catalog",
         "full_subject_id",
         "unit_taken",
-        "course_type",
+        "repeat",
     ]
 
     _picked_columns = [
@@ -37,7 +38,7 @@ class GPARollBack:
         "total_gpa",
         "grade_points_per_unit",
         "grade_points",
-        "course_type",
+        "repeat",
     ]
 
     def __init__(self, student_id: int, student_df: pd.DataFrame) -> "GPARollBack":
@@ -92,7 +93,6 @@ class GPARollBack:
 
         assert len(self.by_subjects[subject_name]["current"]) > 0
 
-        course_type = self.by_subjects[subject_name]["current"]["course_type"].iloc[0]
         current_row = self.by_subjects[subject_name]["current"].iloc[0:1, :]
 
         #  remove current row
@@ -116,20 +116,19 @@ class GPARollBack:
 
         previous_row = self.by_subjects[subject_name]["current"].iloc[0:1, :]
 
-        # allow repeat
-        #  TODO: new repeat logic
-        repeat_tag  = "REPT"
-        if repeat_tag != "EXCLUDE":
-            plus_value = (0, 0)
-        else:
-            plus_value = (
-                (
-                    previous_row["unit_taken"].iloc[0],
-                    previous_row["grade_points_per_unit"].iloc[0],
-                )
-                if len(self.by_subjects[subject_name]["current"]) > 0
-                else (0, 0)
+        plus_value = (
+            (
+                previous_row["unit_taken"].iloc[0],
+                previous_row["grade_points_per_unit"].iloc[0],
             )
+            if (len(self.by_subjects[subject_name]["current"]) > 0)
+            and (previous_row["repeat"].iloc[0] == "EXCL")
+            else (0, 0)
+        )
+        # if subject_name == "COMM-101-0":
+        #     print(self.by_subjects[subject_name]['current'])
+        #     print(self.by_subjects[subject_name]['past'])
+        #     print(subject_name, minus_value, plus_value)
         return (subject_name, minus_value, plus_value)
 
     def rollback(self) -> "GPARollBack":
@@ -171,7 +170,8 @@ class GPARollBack:
 
                 total_gpa = current_gpa["total_gpa"] - units_minus + units_plus
 
-                if not total_gpa >= 0: print(f"{id} got a negative total_gpa: {total_gpa}")
+                if not total_gpa >= 0:
+                    print(f"{id} got a negative total_gpa: {total_gpa}")
 
                 grade_points = (
                     current_gpa["grade_points"]
@@ -195,9 +195,8 @@ class GPARollBack:
         gpa_df = pd.DataFrame(gpa_by_term)
         gpa = round(gpa_df["grade_points"] / gpa_df["total_gpa"], 3)
 
-        if not all(
-            (0 <= g <= 4) or math.isnan(g) for g in gpa
-        ): print(f"{id}'s GPA is out of range: {gpa}")
+        if not all((0 <= g <= 4) or math.isnan(g) for g in gpa):
+            print(f"{id}'s GPA is out of range: \n{gpa}")
         gpa_df["GPA"] = gpa
         self.rolled_df = gpa_df
         return self
@@ -210,16 +209,13 @@ if __name__ == "__main__":
     con = duckdb.connect("database.duckdb")
 
     student_ids = con.sql(
-    """
+        """
         select distinct id from silver_gpa_table order by id;
     """
     ).to_df()
-    
-    con.sql("truncate TABLE rolled_gpa")
 
-    for id in  [
-        3081652
-    ]:  #  student_ids["id"][100:500]:
+    con.sql("truncate TABLE rolled_gpa")
+    for id in student_ids["id"][:1000]:
         df = con.sql(
             f"""
             select distinct 
@@ -231,7 +227,7 @@ if __name__ == "__main__":
                 grd_pt_per_unit as grade_points_per_unit, 
                 enrl_tot_gpa as total_gpa,
                 grade_points,
-                course_type
+                repeat
             from silver_gpa_table
             where id = {id}
             ;"""
@@ -241,5 +237,7 @@ if __name__ == "__main__":
             GPARollBack(student_id=id, student_df=df).load_data().rollback().rolled_df
         )
         # print(student_roll_back)
-        con.sql(f"insert into rolled_gpa select {id} as student_id, * from student_roll_back;")
+        con.sql(
+            f"insert into rolled_gpa select {id} as student_id, * from student_roll_back;"
+        )
     con.close()
