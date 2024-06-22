@@ -51,21 +51,28 @@ SELECT
     grd_points,
     grade_points,
     enrl_tot_gpa,
+    topic_id,
     repeat
 FROM
     update_comm_cte
 )
 ,non_repeatable_catalog as (
 SELECT
-    id,
-    term,
-    subject_catalog,
-    grade,
-    unit_taken,
-    grd_pt_per_unit,
-    grd_points,
-    grade_points,
-    enrl_tot_gpa,
-    repeat
-from original_catalog
+    cat.id,
+    cat.term,
+    -- cat.subject_catalog,
+    coalesce(dup.course, cat.subject_catalog)  as course_name,
+    cat.subject_catalog as original_course,
+    dup.course as replaced_course,
+    cat.grade,
+    cat.unit_taken,
+    cat.grd_pt_per_unit,
+    cat.grd_points,
+    cat.grade_points,
+    cat.enrl_tot_gpa,
+    cat.repeat
+from original_catalog cat
+left join {{ ref('no_duplicate_credits') }} dup
+on cat.subject_catalog = dup.may_not_receive
 )
+select * from non_repeatable_catalog

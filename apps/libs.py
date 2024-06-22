@@ -188,6 +188,9 @@ class GPARollBack:
                     "total_gpa": total_gpa,
                     "grade_points": grade_points,
                 }
+                
+                if all([current_gpa['total_gpa']==0, current_gpa['grade_points'] == 0]):
+                    break
                 pass
                 # print(roll_repeat_subject)
             gpa_by_term.append(current_gpa)
@@ -214,8 +217,9 @@ if __name__ == "__main__":
     """
     ).to_df()
 
-    con.sql("truncate TABLE rolled_gpa")
-    for id in student_ids["id"][:1000]:
+    con.sql("truncate TABLE rolled_gpa;")
+
+    for id in [1480549,1477447, 1506843]:  #student_ids["id"][:5000]:
         df = con.sql(
             f"""
             select distinct 

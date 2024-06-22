@@ -1,0 +1,6 @@
+version: 2
+
+models:
+  - name: raw_import_result
+    config:
+      data_location: "{{ var('data_location') }}"
