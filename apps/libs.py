@@ -1,6 +1,7 @@
 from typing import Tuple
 import pandas as pd
 import math
+import json_tricks
 import warnings
 
 warnings.simplefilter(action="ignore", category=Warning)
@@ -14,6 +15,8 @@ class GPARollBack:
     subjects: list
     by_terms: dict
     by_subjects: dict
+
+    rollback_error: dict
 
     _columns = [
         "id",
@@ -146,6 +149,8 @@ class GPARollBack:
             "grade_points": self.df.iloc[0]["grade_points"],
         }
 
+        self.rollback_error = {"id": self.student_id, "terms": []}
+
         gpa_by_term = [current_gpa]
 
         #  Initialize value. for total_gpa and grade_points,
@@ -157,7 +162,7 @@ class GPARollBack:
         # grade_points_per_unit, minus [unit_taken] * [grade_points_per_unit]
 
         for term_key, term in enumerate(self.terms):
-
+            error = {"term": term, "error": []}
             term_df = self.by_terms[term]["current"]
             for _, row in term_df.iterrows():
 
@@ -170,14 +175,12 @@ class GPARollBack:
 
                 total_gpa = current_gpa["total_gpa"] - units_minus + units_plus
 
-                if not total_gpa >= 0:
-                    print(f"{id} got a negative total_gpa: {total_gpa}")
-
                 grade_points = (
                     current_gpa["grade_points"]
                     - (units_minus * points_minus)
                     + (units_plus * points_plus)
                 )
+                gpa = round(grade_points / total_gpa, 3)
 
                 current_gpa = {
                     "term": (
@@ -187,21 +190,29 @@ class GPARollBack:
                     ),
                     "total_gpa": total_gpa,
                     "grade_points": grade_points,
+                    "GPA": gpa,
                 }
-                
-                if all([current_gpa['total_gpa']==0, current_gpa['grade_points'] == 0]):
-                    break
-                pass
-                # print(roll_repeat_subject)
+
+            if total_gpa < 0:
+                err_msg = f"got a negative total_gpa: {total_gpa}"
+                print(err_msg)
+                error["error"].append(err_msg)
+
+            if not ((0 <= gpa <= 4) or math.isnan(gpa)):
+                error_msg = f"GPA is out of range: \n{gpa}"
+                print(error_msg)
+                error["error"].append(error_msg)
+
+            if all([current_gpa["total_gpa"] == 0, current_gpa["grade_points"] == 0]):
+                error["to_zero"] = True
+
             gpa_by_term.append(current_gpa)
+            self.rollback_error["terms"].append(error)
         # print(json.dumps(gpa_by_term))
         gpa_df = pd.DataFrame(gpa_by_term)
-        gpa = round(gpa_df["grade_points"] / gpa_df["total_gpa"], 3)
 
-        if not all((0 <= g <= 4) or math.isnan(g) for g in gpa):
-            print(f"{id}'s GPA is out of range: \n{gpa}")
-        gpa_df["GPA"] = gpa
         self.rolled_df = gpa_df
+
         return self
 
 
@@ -213,13 +224,14 @@ if __name__ == "__main__":
 
     student_ids = con.sql(
         """
-        select distinct id from silver_gpa_table order by id;
+        select distinct id from silver_gpa_table order by id limit 100;
     """
     ).to_df()
 
-    con.sql("truncate TABLE rolled_gpa;")
 
-    for id in [1480549,1477447, 1506843]:  #student_ids["id"][:5000]:
+    con.sql("truncate TABLE rolled_gpa;")
+    roll_log = []
+    for id in student_ids["id"]:
         df = con.sql(
             f"""
             select distinct 
@@ -237,11 +249,15 @@ if __name__ == "__main__":
             ;"""
         ).to_df()
 
-        student_roll_back = (
-            GPARollBack(student_id=id, student_df=df).load_data().rollback().rolled_df
-        )
-        # print(student_roll_back)
-        con.sql(
-            f"insert into rolled_gpa select {id} as student_id, * from student_roll_back;"
-        )
+        rb = GPARollBack(student_id=id, student_df=df).load_data().rollback()
+        rb_df = rb.rolled_df
+        con.sql(f"insert into rolled_gpa select {id} as student_id, * from rb_df;")
+
+        roll_log.append(json_tricks.dumps(rb.rollback_error))
+
+    student_ids['log'] = roll_log
+    con.sql("create or replace table rollback_run_log as select * from student_ids;")
+
     con.close()
+
+    # SELECT log->'$.id' FROM rollback_run_log;
