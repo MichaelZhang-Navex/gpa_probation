@@ -36,7 +36,10 @@ WITH update_comm_cte AS (
             'C',
             'D',
             'F',
-            'PS'
+            'PS',
+            'NP',
+            'WP',
+            'WF'
         )
 ),
 original_catalog as(

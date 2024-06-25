@@ -54,7 +54,7 @@ class GPARollBack:
         # df.columns = self._columns
         df.sort_values("term", ascending=False, inplace=True)
 
-        df = df[df["grade"].isin(["A", "B", "C", "D", "F", "PS"])]
+        df = df[df["grade"].isin(["A", "B", "C", "D", "F", "PS", "NP", "WF", "WP"])]
         df = df[self._picked_columns]
 
         self.df = df
@@ -111,6 +111,11 @@ class GPARollBack:
         # pass_fail
         if current_row["grade"].iloc[0] == "PS":
             minus_value = (0, 0)
+        elif (
+            current_row["grade"].iloc[0] in ["NP", "WF", "WP"]
+            and current_row["repeat"].iloc[0] != "EXCL"
+        ):
+            minus_value = (0, 0)
         else:
             minus_value = (
                 current_row["unit_taken"].iloc[0],
@@ -128,10 +133,10 @@ class GPARollBack:
             and (previous_row["repeat"].iloc[0] == "EXCL")
             else (0, 0)
         )
-        # if subject_name == "COMM-101-0":
-        #     print(self.by_subjects[subject_name]['current'])
-        #     print(self.by_subjects[subject_name]['past'])
+        # if subject_name in [ "ENGL-308", "PHIL-101", "ENGL-481"]:
+        #     print(current_row["grade"].iloc[0])
         #     print(subject_name, minus_value, plus_value)
+
         return (subject_name, minus_value, plus_value)
 
     def rollback(self) -> "GPARollBack":
@@ -147,6 +152,9 @@ class GPARollBack:
             "term": self.df.iloc[0]["term"],
             "total_gpa": self.df.iloc[0]["total_gpa"],
             "grade_points": self.df.iloc[0]["grade_points"],
+            "GPA": round(
+                self.df.iloc[0]["grade_points"] / self.df.iloc[0]["total_gpa"], 3
+            ),
         }
 
         self.rollback_error = {"id": self.student_id, "terms": []}
@@ -195,13 +203,15 @@ class GPARollBack:
 
             if total_gpa < 0:
                 err_msg = f"got a negative total_gpa: {total_gpa}"
-                print(err_msg)
+                # print(err_msg)
                 error["error"].append(err_msg)
+                self.rollback_error["has_error"] = True
 
             if not ((0 <= gpa <= 4) or math.isnan(gpa)):
                 error_msg = f"GPA is out of range: \n{gpa}"
-                print(error_msg)
+                # print(error_msg)
                 error["error"].append(error_msg)
+                error["has_error"] = True
 
             if all([current_gpa["total_gpa"] == 0, current_gpa["grade_points"] == 0]):
                 error["to_zero"] = True
@@ -224,14 +234,27 @@ if __name__ == "__main__":
 
     student_ids = con.sql(
         """
-        select distinct id from silver_gpa_table order by id limit 100;
+        with cte as (
+        select distinct id from silver_gpa_table
+        -- offset 10000
+        -- limit 10000
+        )
+        select id from cte
+        -- where id in (
+            -- 3032656, 
+            -- 3067844, 
+            -- 3085769, 
+            -- 3087241, 
+            -- 3101697
+        -- )
+        -- using sample 500
+        order by id;
     """
     ).to_df()
 
-
     con.sql("truncate TABLE rolled_gpa;")
     roll_log = []
-    for id in student_ids["id"]:
+    for key, id in enumerate(student_ids["id"]):
         df = con.sql(
             f"""
             select distinct 
@@ -254,9 +277,12 @@ if __name__ == "__main__":
         con.sql(f"insert into rolled_gpa select {id} as student_id, * from rb_df;")
 
         roll_log.append(json_tricks.dumps(rb.rollback_error))
+        print(f"finished, {id}, { round((key+1)/len(student_ids) *100, 2) }%")
 
-    student_ids['log'] = roll_log
+    student_ids["log"] = roll_log
     con.sql("create or replace table rollback_run_log as select * from student_ids;")
+
+    # con.sql("select * from main.rolled_gpa").show()
 
     con.close()
 
