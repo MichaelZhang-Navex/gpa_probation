@@ -13,5 +13,7 @@
     fzf
     bat
     ripgrep
+    yazi
+    file
 ;
 }
