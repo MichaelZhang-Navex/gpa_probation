@@ -9,3 +9,7 @@ logs/
 
 .DS_Store
 output.*
+
+*.log
+
+import/

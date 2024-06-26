@@ -226,33 +226,28 @@ class GPARollBack:
         return self
 
 
-if __name__ == "__main__":
+def model(dbt, session) -> pd.DataFrame:
 
-    import duckdb
+    dbt.config(alias="roll_one_gpa_log")
+    
+    student_ids = dbt.config.get('student_id')
+    if isinstance(student_ids, int):
+        student_ids = [student_ids]
+    assert len(student_ids)>0
+    student_ids = pd.DataFrame(student_ids, columns=["id"])
 
-    con = duckdb.connect("database.duckdb")
-
-    student_ids = con.sql(
-        """
-        with cte as (
-        select distinct id from silver_gpa_table
-        -- offset 10000
-        -- limit 10000
-        )
-        select id from cte
-        -- where id in (
-            -- 3031282
-            -- 3097175
-        -- )
-        -- using sample 500
-        order by id;
-    """
-    ).to_df()
-
-    con.sql("truncate TABLE rolled_gpa;")
+    session.sql("""
+        create or replace table rolled_single_gpa (
+            student_id   BIGINT,
+            term         BIGINT,
+            total_gpa    BIGINT,
+            grade_points BIGINT,
+            GPA          DOUBLE
+            );
+    """)
     roll_log = []
     for key, id in enumerate(student_ids["id"]):
-        df = con.sql(
+        df = session.sql(
             f"""
             select
                 id,
@@ -272,16 +267,18 @@ if __name__ == "__main__":
 
         rb = GPARollBack(student_id=id, student_df=df).load_data().rollback()
         rb_df = rb.rolled_df
-        con.sql(f"insert into rolled_gpa select {id} as student_id, * from rb_df;")
+        session.sql(f"insert into rolled_single_gpa select {id} as student_id, * from rb_df;")
 
         roll_log.append(json_tricks.dumps(rb.rollback_error))
         print(f"finished, {id}, { round((key+1)/len(student_ids) *100, 2) }%")
 
     student_ids["log"] = roll_log
-    con.sql("create or replace table rollback_run_log as select * from student_ids;")
 
-    con.sql("select * from main.rolled_gpa").show()
-
-    con.close()
-
+    session.sql("select * from rolled_single_gpa;").show()
+    session.sql(f"""
+        select * from main.silver_gpa_table 
+        where id in ({','.join([str(i) for i in student_ids["id"]])})
+        order by course_name, term desc;
+    """).show(max_width=10000, max_rows=100000)
+    return student_ids
     # SELECT log->'$.id' FROM rollback_run_log;

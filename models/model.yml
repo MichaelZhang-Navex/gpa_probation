@@ -4,3 +4,6 @@ models:
   - name: raw_import_result
     config:
       data_location: "{{ var('data_location') }}"
+  - name: roll_one_gpa
+    config:
+      student_id: "{{ var('student_id') }}"

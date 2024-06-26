@@ -1,5 +1,6 @@
 {{ config(
-    materialized = 'view'
+    materialized = 'view',
+    tags = ['build'],
 ) }}
 
 WITH update_comm_cte AS (

@@ -30,10 +30,8 @@ clean-targets:         # directories to be removed by `dbt clean`
 # directory as views. These settings can be overridden in the individual model
 # files using the `{{ config(...) }}` macro.
 models:
-  gpa:
-    stage:
-      raw_import_result:
-        +enabled: false
+  gpa: {}
 
 vars:
-  data_location: "C:/Users/Wendy/OneDrive - Salisbury University/Probation/historical data/ALL GRADE/"
+  data_location: "/workspaces/gpa_probation/import/"
+  student_id: 0
