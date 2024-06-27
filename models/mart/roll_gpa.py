@@ -13,7 +13,7 @@ warnings.simplefilter(action="ignore", category=Warning)
 
 
 ROLLED_GPA_TABLE = 'gold_rolled_gpa'
-STEP = 10
+STEP = 32
 
 class GPARollBack:
     student_df: pd.DataFrame
