@@ -9,3 +9,6 @@ build:
 
 roll_one:
 	dbt run -q --no-use-colors --vars '{"student_id": '"$$id"'}' -s roll_one_gpa > roll_one_result.log
+
+roll_all:
+	dbt run -s roll_gpa

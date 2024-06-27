@@ -13,6 +13,7 @@ warnings.simplefilter(action="ignore", category=Warning)
 
 
 ROLLED_GPA_TABLE = 'gold_rolled_gpa'
+STEP = 10
 
 class GPARollBack:
     student_df: pd.DataFrame
@@ -287,12 +288,12 @@ async def main(session):
     student_id_count= len(student_ids)
     tasks = [roll_student(session, row['id'], round((key+1)/student_id_count, 4)) for key, row in student_ids.iterrows()]
 
-    step = 10
+    
 
     results = []
 
-    for i in range(0, len(tasks), step):
-        group_result =  await asyncio.gather(*tasks[i : i + step])
+    for i in range(0, len(tasks), STEP):
+        group_result =  await asyncio.gather(*tasks[i : i + STEP])
         results.append(pd.concat(group_result))
     return pd.concat(results)
 
