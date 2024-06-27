@@ -1,11 +1,18 @@
+import asyncio
+from tqdm.asyncio import trange, tqdm
+import pandas as pd
 from typing import Tuple
 import pandas as pd
 import math
+import json_tricks
 import warnings
-import asyncio 
+import duckdb
+from datetime import datetime
 
 warnings.simplefilter(action="ignore", category=Warning)
 
+
+ROLLED_GPA_TABLE = 'gold_rolled_gpa'
 
 class GPARollBack:
     student_df: pd.DataFrame
@@ -131,9 +138,10 @@ class GPARollBack:
             )
             if (len(self.by_subjects[subject_name]["current"]) > 0)
             and (previous_row["repeat"].iloc[0] == "EXCL")
+            and (previous_row["grade"].iloc[0] != "PS")
             else (0, 0)
         )
-        # if subject_name in [ "CADR-405"]:
+        # if subject_name in ["PSYC-306"]:
         #     print(current_row["grade"].iloc[0])
         #     print(subject_name, minus_value, plus_value)
 
@@ -226,123 +234,81 @@ class GPARollBack:
         return self
 
 
-    # An asynchronous function to simulate a network request and perform a SQL query
-async def fetch_data(session, task_name, delay):
-    print(f"Task {task_name}: Started, will take {delay} seconds")
-    await asyncio.sleep(delay)  # Simulate an I/O-bound operation with a sleep
-    result = session.sql(f"SELECT '{task_name}' AS task_name, {delay} AS delay").to_df()
-    print(f"Task {task_name}: Completed with result: {result}")
-    return result
+async def roll_student(session, student_id, percent):
+    print(f"processing: {student_id} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, {percent}%")
+    df = session.sql(
+        f"""
+        select
+            id,
+            term, 
+            course_name as full_subject_id,  
+            grade,  
+            unit_taken, 
+            grd_pt_per_unit as grade_points_per_unit, 
+            enrl_tot_gpa as total_gpa,
+            grade_points,
+            repeat
+        from silver_gpa_table
+        where id = {student_id}
+        order by term desc, repeat desc
+        ;"""
+    ).to_df()
 
-# The main asynchronous function to run multiple tasks
+    rb = GPARollBack(student_id=student_id, student_df=df).load_data().rollback()
+    rb_df = rb.rolled_df
+    insert_query = f"insert into {ROLLED_GPA_TABLE} select {student_id} as student_id, * from rb_df;"
+    session.sql(insert_query)
+
+    roll_log = json_tricks.dumps(rb.rollback_error)
+    # print(f"finished, {id}, { round((key+1)/students *100, 4) }%")
+
+    roll_log_df = pd.DataFrame({"id": [student_id], "log": [roll_log]})
+    return roll_log_df
+
+
 async def main(session):
+
+    session.sql(f"""
+        create or replace table {ROLLED_GPA_TABLE} (
+            student_id   BIGINT,
+            term         BIGINT,
+            total_gpa    BIGINT,
+            grade_points BIGINT,
+            GPA          DOUBLE
+            );
+    """)
 
     student_ids = session.sql(
         """
-        select distinct id from silver_gpa_table
-        using sample 10
-        -- offset 10000
-        -- limit 10000
+        select distinct id from silver_gpa_table;
     """
     ).to_df()
 
-    pass
+    student_id_count= len(student_ids)
+    tasks = [roll_student(session, row['id'], round((key+1)/student_id_count, 4)) for key, row in student_ids.iterrows()]
 
-    # # Create a list of tasks
-    # tasks = [
-    #     fetch_data(session, "Task 1", 2),
-    #     fetch_data(session, "Task 2", 3),
-    #     fetch_data(session, "Task 3", 1)
-    # ]
+    step = 10
 
-    # # Run the tasks concurrently and wait for all of them to complete
-    # results = await asyncio.gather(*tasks)
-    
-    # # Combine the results into a single dataframe
-    # combined_results = []
-    # for result in results:
-    #     combined_results.append(result)
-    # return pd.concat(combined_results)
+    results = []
 
-# def model(dbt, session):
-#     dbt.config(alias="roll_gpa_log")
-#     # Run the asynchronous function and get the combined results
-#     combined_results = asyncio.run(main(session))
-#     print(combined_results)
-#     return combined_results
+    for i in range(0, len(tasks), step):
+        group_result =  await asyncio.gather(*tasks[i : i + step])
+        results.append(pd.concat(group_result))
+    return pd.concat(results)
 
-from tqdm.asyncio import trange, tqdm
-
-async def test_run(session):
-    async for i in trange(10):
-        session.sql("show tables;").show()
 
 def model(dbt, session):
-    asyncio.run(test_run(session))
-    return pd.DataFrame({"id": [1,2,3]})
+    
+    dbt.config(alias="gold_roll_gpa_log")
+    # Run the asynchronous function and get the combined results
+    combined_results = asyncio.run(main(session))
+    return combined_results
 
+class MyDBT:
+    def config(self, *args, **kwargs):
+        print(args, kwargs)
 
-
-
-# def model(dbt, session):
-#     dbt.config(alias="roll_gpa_log")
-
-#     student_ids = session.sql(
-#         """
-#         with cte as (
-#         select distinct id from silver_gpa_table
-#         -- offset 10000
-#         -- limit 10000
-#         )
-#         select id from cte
-#         -- where id in (
-#             -- 3031282
-#             -- 3097175
-#         -- )
-#         -- using sample 100
-#         order by id;
-#     """
-#     ).to_df()
-
-
-#     session.sql("""
-#             create or replace table rolled_gpa (
-#                 student_id   BIGINT,
-#                 term         BIGINT,
-#                 total_gpa    BIGINT,
-#                 grade_points BIGINT,
-#                 GPA          DOUBLE
-#                 );
-#     """)
-#     roll_log = []
-#     students = len(student_ids["id"])
-#     for key, id in enumerate(student_ids["id"]):
-#         df = session.sql(
-#             f"""
-#             select
-#                 id,
-#                 term, 
-#                 course_name as full_subject_id,  
-#                 grade,  
-#                 unit_taken, 
-#                 grd_pt_per_unit as grade_points_per_unit, 
-#                 enrl_tot_gpa as total_gpa,
-#                 grade_points,
-#                 repeat
-#             from silver_gpa_table
-#             where id = {id}
-#             order by term desc, repeat desc
-#             ;"""
-#         ).to_df()
-
-#         rb = GPARollBack(student_id=id, student_df=df).load_data().rollback()
-#         rb_df = rb.rolled_df
-#         session.sql(f"insert into rolled_gpa select {id} as student_id, * from rb_df;")
-
-#         roll_log.append(json_tricks.dumps(rb.rollback_error))
-#         print(f"finished, {id}, { round((key+1)/students *100, 4) }%")
-#     student_ids["log"] = roll_log
-#     return student_ids
-#     # session.sql("create or replace table rollback_run_log as select * from student_ids;")
-#     # session.sql("select * from main.rolled_gpa").show()
-
+if __name__ == '__main__':
+    session = duckdb.connect('md:main_db')
+    dbt = MyDBT()
+    model(dbt, session)

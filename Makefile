@@ -1,4 +1,4 @@
-id ?=[1500964] # Default list of student IDs
+id ?="[1500964]" # Default list of student IDs
 
 import_excel:
 	dbt run -s raw_import_result

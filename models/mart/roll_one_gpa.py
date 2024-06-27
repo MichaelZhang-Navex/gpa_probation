@@ -130,10 +130,10 @@ class GPARollBack:
                 float(previous_row["grade_points_per_unit"].iloc[0]),
             )
             if (len(self.by_subjects[subject_name]["current"]) > 0)
-            and (previous_row["repeat"].iloc[0] == "EXCL")
+            and (previous_row["repeat"].iloc[0] == "EXCL") and (previous_row["grade"].iloc[0] != "PS")
             else (0, 0)
         )
-        if subject_name in [ "CADR-405"]:
+        if subject_name in [ "PSYC-306"]:
             print(current_row["grade"].iloc[0])
             print(subject_name, minus_value, plus_value)
 
