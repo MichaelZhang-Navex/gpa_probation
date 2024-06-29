@@ -12,3 +12,6 @@ roll_one:
 
 roll_all:
 	dbt run -s roll_gpa
+
+dump_error:
+	duckdb database.duckdb -c "$$(cat dump_data.sql)"
