@@ -1,6 +1,6 @@
 Welcome to your new dbt project!
 
-## Initial Run
+## Initial environment setup
 
 ```bash
 mise install
@@ -18,7 +18,7 @@ make import_excel
 make build
 ```
 
-### Calculate
+### Calculate data
 
 ```bash
 # roll one student
