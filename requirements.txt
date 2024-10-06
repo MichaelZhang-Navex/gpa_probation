@@ -2,3 +2,4 @@ dbt-duckdb
 pqdm
 pandas
 json_tricks
+openpyxl

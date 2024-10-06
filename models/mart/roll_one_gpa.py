@@ -228,9 +228,13 @@ class GPARollBack:
 
 def model(dbt, session) -> pd.DataFrame:
 
-    dbt.config(alias="roll_one_gpa_log")
-    
-    student_ids = dbt.config.get('student_id')
+    if dbt is None:
+        student_ids= 3105686
+    else:
+        dbt.config(alias="roll_one_gpa_log")
+        student_ids = dbt.config.get('student_id')
+
+
     if isinstance(student_ids, int):
         student_ids = [student_ids]
     assert len(student_ids)>0
@@ -282,3 +286,14 @@ def model(dbt, session) -> pd.DataFrame:
     """).show(max_width=10000, max_rows=100000)
     return student_ids
     # SELECT log->'$.id' FROM rollback_run_log;
+
+
+if __name__ == "__main__":
+    import duckdb
+
+    db = duckdb.connect(database='database.duckdb', read_only=False)
+    session = db.cursor()
+    res = model(None, session)
+    print(res)
+    # res = session.execute("select * from main.silver_gpa_table limit 10;").fetch_df()
+    # print(res)

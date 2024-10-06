@@ -13,6 +13,6 @@ duckdb = "1"
 duckdb = 'https://github.com/asdf-community/asdf-duckdb'
 
 
-[tasks.defult]
+[tasks.default]
 run  = ['pip install -r requirements.txt']
 
