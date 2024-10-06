@@ -1,5 +1,5 @@
 import asyncio
-from tqdm.asyncio import trange, tqdm
+from pqdm.threads import pqdm
 import pandas as pd
 from typing import Tuple
 import pandas as pd
@@ -234,8 +234,9 @@ class GPARollBack:
         return self
 
 
-async def roll_student(session, student_id, percent):
-    print(f"processing: {student_id} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, {percent}%")
+def roll_student(arg):
+    (student_id, session) = arg
+    print(f"processing: {student_id} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     df = session.sql(
         f"""
         select
@@ -266,7 +267,52 @@ async def roll_student(session, student_id, percent):
     return roll_log_df
 
 
-async def main(session):
+# async def main(session):
+
+#     session.sql(f"""
+#         create or replace table {ROLLED_GPA_TABLE} (
+#             student_id   BIGINT,
+#             term         BIGINT,
+#             total_gpa    BIGINT,
+#             grade_points BIGINT,
+#             GPA          DOUBLE
+#             );
+#     """)
+
+#     student_ids = session.sql(
+#         """
+#         select distinct id from silver_gpa_table
+#         using sample 10;
+#     """
+#     ).to_df()
+
+    # student_id_count= len(student_ids)
+
+    # async for i in trange(student_id_count):
+
+    #     row = student_ids.iloc[i]
+    #     student_id = row['id']
+    #     percent = round((i+1)/student_id_count, 4)
+    #     await roll_student(session, student_id, percent)
+
+    # tasks = [roll_student(session, row['id'], round((key+1)/student_id_count, 4)) for key, row in student_ids.iterrows()]
+
+    # step = 10
+
+    # results = []
+
+    # for i in range(0, len(tasks), step):
+    #     group_result =  await asyncio.gather(*tasks[i : i + step])
+    #     results.append(pd.concat(group_result))
+    # return pd.concat(results)
+
+
+def model(dbt, session):
+    
+    dbt.config(alias="gold_roll_gpa_log")
+    dbt.config(materialized="table")
+    # Run the asynchronous function and get the combined results
+
 
     session.sql(f"""
         create or replace table {ROLLED_GPA_TABLE} (
@@ -280,35 +326,25 @@ async def main(session):
 
     student_ids = session.sql(
         """
-        select distinct id from silver_gpa_table;
+        select distinct id from silver_gpa_table
+        using sample 1;
     """
-    ).to_df()
+    ).to_df()["id"]
 
-    student_id_count= len(student_ids)
-    tasks = [roll_student(session, row['id'], round((key+1)/student_id_count, 4)) for key, row in student_ids.iterrows()]
+    result = pqdm([(id, session) for id in student_ids], roll_student, n_jobs=5)
 
-    step = 10
+    return result
 
-    results = []
-
-    for i in range(0, len(tasks), step):
-        group_result =  await asyncio.gather(*tasks[i : i + step])
-        results.append(pd.concat(group_result))
-    return pd.concat(results)
-
-
-def model(dbt, session):
-    
-    dbt.config(alias="gold_roll_gpa_log")
-    # Run the asynchronous function and get the combined results
-    combined_results = asyncio.run(main(session))
-    return combined_results
+    # combined_results = asyncio.run(main(session))
+    # return combined_results
 
 class MyDBT:
     def config(self, *args, **kwargs):
         print(args, kwargs)
 
 if __name__ == '__main__':
-    session = duckdb.connect('md:main_db')
+    session = duckdb.connect('database.duckdb')
     dbt = MyDBT()
-    model(dbt, session)
+    res = model(dbt, session)
+    print(res)
+    session.close()
