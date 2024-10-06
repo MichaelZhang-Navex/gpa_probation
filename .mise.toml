@@ -1,3 +1,7 @@
+# curl https://mise.run | sh
+# echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+# echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc
+
 [env]
 _.python.venv = { path = '.venv', create = true }
 
