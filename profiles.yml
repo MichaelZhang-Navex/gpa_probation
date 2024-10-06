@@ -1,11 +1,11 @@
 gpa:
-  target: prod
+  target: local
   outputs:
-    gpa:
+    local:
       type: duckdb
       path: database.duckdb
       schema: main
-    prod:
+    md:
       type: duckdb
       path: "md:main_db"
       schema: main

@@ -13,3 +13,4 @@ output.*
 *.log
 
 import/
+data_dump/
