@@ -3,3 +3,5 @@ pqdm
 pandas
 json_tricks
 openpyxl
+streamlit
+watchdog

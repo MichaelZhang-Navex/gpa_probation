@@ -12,7 +12,31 @@ duckdb = "1"
 [plugins]
 duckdb = 'https://github.com/asdf-community/asdf-duckdb'
 
-
-[tasks.default]
+[tasks.install]
 run  = ['pip install -r requirements.txt']
 
+
+[tasks.update_data]
+run = [
+    "dbt run -s raw_import_result",  # import excel
+    "dbt seed -f", # config seed
+]
+
+[tasks.roll_one]
+run = """
+dbt run -q --no-use-colors --vars " {"student_id": {{arg(name="id")}} }" -s roll_one_gpa
+"""
+
+[tasks.roll_all]
+run =  "dbt run -s tag:build"
+
+[tasks.full_run]
+run = [
+    "dbt run -s raw_import_result",  # import excel
+    "dbt seed -f", # config seed
+    "dbt run -s tag:build" # build the lineage
+]
+
+
+[tasks.serve]
+run = "streamlit run streamlit.py"
