@@ -2,6 +2,16 @@ Welcome to your new dbt project!
 
 ## Initial environment setup
 
+### Install mise
+
+```bash
+curl https://mise.run | sh
+echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
+echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc
+```
+
+### install everything
+
 ```bash
 mise install
 mise run
