@@ -1,0 +1,10 @@
+ms-python.python
+ms-python.vscode-pylance
+oderwat.indent-rainbow
+tal7aouy.rainbow-bracket
+eamodio.gitlens
+innoverio.vscode-dbt-power-user
+bastienboutonnet.vscode-dbt
+henriblancke.vscode-dbt-formatter
+ms-python.black-formatter
+tamasfe.even-better-toml

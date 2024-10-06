@@ -12,14 +12,34 @@ duckdb = "1"
 [plugins]
 duckdb = 'https://github.com/asdf-community/asdf-duckdb'
 
-[tasks.install]
+# MARK: install python packages
+[tasks.pip]
 run  = ['pip install -r requirements.txt']
 
+
+# MARK: vscode extensions
+
+[tasks.ext]
+run = """
+while read extension; do 
+code --install-extension $extension; 
+done < vscode_extensions.txt
+"""
+
+[tasks.unext]
+run = """
+for ext in $(code --list-extensions); do
+    code --uninstall-extension "$ext"
+done
+"""
+
+# MARK: main tasks
 
 [tasks.update_data]
 run = [
     "dbt run -s raw_import_result",  # import excel
     "dbt seed -f", # config seed
+    "dbt run -s tag:build" # build prep models,
 ]
 
 [tasks.roll_one]
@@ -28,15 +48,17 @@ dbt run -q --no-use-colors --vars " {"student_id": {{arg(name="id")}} }" -s roll
 """
 
 [tasks.roll_all]
-run =  "dbt run -s tag:build"
+run =  "dbt run -s roll_gpa"
 
 [tasks.full_run]
 run = [
     "dbt run -s raw_import_result",  # import excel
     "dbt seed -f", # config seed
-    "dbt run -s tag:build" # build the lineage
+    "dbt run -s tag:build", # build prep models,
+    "dbt run -s roll_gpa"  # roll all students
 ]
 
 
+# MARK: the web app
 [tasks.serve]
 run = "streamlit run streamlit.py"
