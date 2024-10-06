@@ -1,4 +1,3 @@
-import asyncio
 from pqdm.threads import pqdm
 import pandas as pd
 from typing import Tuple
@@ -334,29 +333,8 @@ def model(dbt, session):
 
     result = pqdm([(id, session) for id in student_ids], roll_student, n_jobs=5)
 
-<<<<<<< HEAD
-    return result
+    return pd.concat(result)
 
-    # combined_results = asyncio.run(main(session))
-    # return combined_results
-=======
-    
-
-    results = []
-
-    for i in range(0, len(tasks), STEP):
-        group_result =  await asyncio.gather(*tasks[i : i + STEP])
-        results.append(pd.concat(group_result))
-    return pd.concat(results)
-
-
-def model(dbt, session):
-    
-    dbt.config(alias="gold_roll_gpa_log")
-    # Run the asynchronous function and get the combined results
-    combined_results = asyncio.run(main(session))
-    return combined_results
->>>>>>> 0b2c08de5c4eff049f4d7a5d5a94f83b001bf1e0
 
 class MyDBT:
     def config(self, *args, **kwargs):
